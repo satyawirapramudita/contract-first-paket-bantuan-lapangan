@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: Field Aid Package Distribution API
+  version: 0.1.0
+  description: |
+    Sistem Penyaluran Paket Bantuan Lapangan.
+    
+    All monetary amounts are integers in the minor unit of the stated currency. Clients MUST ignore unknown response fields.
+servers:
+  - url: https://api.bantuan-lapangan.example.com/v1
+    description: Production Server
+  - url: http://localhost:4010/v1
+    description: Local Mock Development Server
+paths: {}
