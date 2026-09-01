@@ -1,0 +1,28 @@
+{
+  "name": "contract-first-paket-bantuan-lapangan",
+  "version": "1.0.0",
+  "description": "| Anggota | Role | Tanggung jawab |\r |---|---|---|\r | Dhimas | Contract Owner | Menyusun dan mereview `openapi.yaml` serta `CHANGELOG.md` |\r | Naya | Service Owner | Menentukan domain, resource, dan aturan bisnis |\r | Satya | Client Owner | Menganalisis client, idempotency, dan compatibility |\r | Tama | Integration Owner | Menangani error catalog, mock server, README, dan demonstrasi |",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/satyawirapramudita/contract-first-paket-bantuan-lapangan.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/satyawirapramudita/contract-first-paket-bantuan-lapangan/issues"
+  },
+  "homepage": "https://github.com/satyawirapramudita/contract-first-paket-bantuan-lapangan#readme",
+  "devDependencies": {
+    "@redocly/cli": "^1.34.19"
+  }
+}
