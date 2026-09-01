@@ -3,12 +3,567 @@ info:
   title: Field Aid Package Distribution API
   version: 0.1.0
   description: |
-    Sistem Penyaluran Paket Bantuan Lapangan.
+    API spesifikasi sistem penyaluran paket bantuan logistik lapangan mulai dari pengajuan permohonan, peninjauan kelayakan, penyiapan paket gudang, hingga serah terima fisik di lapangan.
     
     All monetary amounts are integers in the minor unit of the stated currency. Clients MUST ignore unknown response fields.
+  license:
+    name: MIT
+    identifier: MIT
 servers:
-  - url: https://api.bantuan-lapangan.example.com/v1
+  - url: https://bantuan-lapangan.internal/v1
     description: Production Server
-  - url: http://localhost:4010/v1
+  - url: http://127.0.0.1:4010/v1
     description: Local Mock Development Server
-paths: {}
+
+security:
+  - BearerAuth: []
+
+paths:
+  /assistance-requests:
+    get:
+      summary: Daftar permohonan paket bantuan
+      description: Mengambil koleksi data permohonan bantuan dengan filter status, tingkat urgensi, serta paginasi berbasis kursor.
+      operationId: listAssistanceRequests
+      tags:
+        - Assistance Requests
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [submitted, approved, rejected, allocated, completed, cancelled]
+          description: Filter berdasarkan status permohonan.
+          example: approved
+        - name: urgency
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+          description: Filter berdasarkan tingkat urgensi kebutuhan.
+          example: high
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque token penanda halaman paginasi data berikutnya.
+          example: cur_9Kz72aBc
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Batas maksimum record per halaman respons.
+          example: 10
+      responses:
+        '200':
+          description: Daftar permohonan bantuan berhasil dimuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AssistanceRequest'
+                  pagination:
+                    type: object
+                    required:
+                      - hasMore
+                      - nextCursor
+                    properties:
+                      hasMore:
+                        type: boolean
+                        example: true
+                      nextCursor:
+                        type:
+                          - string
+                          - "null"
+                        example: cur_9Kz72aBc
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+    post:
+      summary: Pengajuan permohonan bantuan baru
+      description: |
+        Membuat draft permohonan bantuan pangan/darurat baru oleh pemohon.
+        Operasi ini bersifat unsafe dan wajib menyertakan Idempotency-Key.
+      operationId: createAssistanceRequest
+      tags:
+        - Assistance Requests
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - applicantNationalId
+                - applicantName
+                - familyMemberCount
+                - targetLocation
+                - requiredPackageType
+              properties:
+                applicantNationalId:
+                  type: string
+                  example: "3201012304950001"
+                applicantName:
+                  type: string
+                  example: "Budi Santoso"
+                familyMemberCount:
+                  type: integer
+                  minimum: 1
+                  example: 4
+                targetLocation:
+                  type: string
+                  example: "Desa Sukamaju RT 02/04, Posko Bencana 1"
+                requiredPackageType:
+                  type: string
+                  enum: [family_food_pack, medical_emergency_kit, baby_essentials]
+                  example: family_food_pack
+      responses:
+        '201':
+          description: Permohonan bantuan berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistanceRequest'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '409':
+          $ref: '#/components/responses/409Conflict'
+        '422':
+          $ref: '#/components/responses/422UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+  /assistance-requests/{requestId}:
+    get:
+      summary: Detail permohonan bantuan
+      description: Mengambil rincian permohonan bantuan berdasarkan ID unik server.
+      operationId: getAssistanceRequest
+      tags:
+        - Assistance Requests
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Opaque ID permohonan yang diterbitkan oleh server.
+          example: req_7Kq91Ab
+      responses:
+        '200':
+          description: Data permohonan ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistanceRequest'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+  /packages:
+    get:
+      summary: Daftar paket bantuan logistik siap salur
+      description: Mengambil daftar inventaris paket sembako/medis yang telah disiapkan di gudang.
+      operationId: listPackages
+      tags:
+        - Packages
+      responses:
+        '200':
+          description: Daftar paket bantuan berhasil dimuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Package'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+  /distributions:
+    get:
+      summary: Daftar alokasi distribusi paket bantuan
+      description: Mengambil riwayat alokasi penugasan distribusi petugas lapangan.
+      operationId: listDistributions
+      tags:
+        - Distributions
+      responses:
+        '200':
+          description: Daftar alokasi distribusi berhasil dimuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Distribution'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+  /handovers:
+    post:
+      summary: Konfirmasi serah terima paket bantuan di lapangan
+      description: |
+        Petugas lapangan mengonfirmasi serah terima fisik paket logistik kepada penerima manfaat.
+        
+        Operasi ini bersifat unsafe dan konsekuensial (mengubah status alokasi dan kuota penerima secara permanen).
+        Wajib menyertakan Idempotency-Key untuk mencegah pencatatan klaim ganda saat sinkronisasi antrean offline.
+      operationId: confirmHandover
+      tags:
+        - Handover
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - distributionId
+                - recipientNationalId
+                - handedOverAt
+                - fieldOfficerId
+              properties:
+                distributionId:
+                  type: string
+                  example: dst_88bAa99
+                recipientNationalId:
+                  type: string
+                  example: "3201012304950001"
+                handedOverAt:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T14:30:00+07:00"
+                fieldOfficerId:
+                  type: string
+                  example: ofc_55xYz12
+                recipientNotes:
+                  type:
+                    - string
+                    - "null"
+                  example: "Diterima langsung oleh kepala keluarga di tenda pengungsian 03."
+      responses:
+        '201':
+          description: Serah terima paket bantuan berhasil dicatat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Handover'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+        '409':
+          $ref: '#/components/responses/409Conflict'
+        '422':
+          $ref: '#/components/responses/422UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Standar autentikasi token JWT untuk akses API posko logistik.
+
+  parameters:
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: |
+        Generated by the client when the user confirms, and reused unchanged for every retry of that same intent. Retained 24 hours. Reuse with a different body returns 409 idempotency-key-reuse.
+      example: 0f7c1b9e-3d21-4a6f-9c05-8e2b7d41a9f0
+
+  schemas:
+    AssistanceRequest:
+      type: object
+      required:
+        - id
+        - applicantNationalId
+        - applicantName
+        - status
+        - urgency
+        - requestedAt
+      properties:
+        id:
+          type: string
+          description: Identifier opaque yang dihasilkan server.
+          example: req_7Kq91Ab
+        applicantNationalId:
+          type: string
+          example: "3201012304950001"
+        applicantName:
+          type: string
+          example: "Budi Santoso"
+        familyMemberCount:
+          type: integer
+          example: 4
+        status:
+          type: string
+          enum: [submitted, approved, rejected, allocated, completed, cancelled]
+          description: |
+            Clients MUST treat an unrecognised value as 'in progress' and MUST NOT crash on it.
+          example: approved
+        urgency:
+          type: string
+          enum: [low, medium, high, critical]
+          example: high
+        targetLocation:
+          type: string
+          example: "Desa Sukamaju RT 02/04, Posko Bencana 1"
+        requestedAt:
+          type: string
+          format: date-time
+          example: "2026-09-01T09:15:00+07:00"
+
+    Package:
+      type: object
+      required:
+        - id
+        - packageCode
+        - packageType
+        - preparationStatus
+        - readyAt
+      properties:
+        id:
+          type: string
+          example: pkg_44Lk90a
+        packageCode:
+          type: string
+          example: "LOG-SEMBAKO-001"
+        packageType:
+          type: string
+          enum: [family_food_pack, medical_emergency_kit, baby_essentials]
+          example: family_food_pack
+        preparationStatus:
+          type: string
+          enum: [draft, assembled, ready_for_pickup, dispatched]
+          description: |
+            Clients MUST treat an unrecognised value as 'in progress' and MUST NOT crash on it.
+          example: ready_for_pickup
+        warehouseLocation:
+          type: string
+          example: "Gudang Utama Posko Logistik Induk"
+        readyAt:
+          type: string
+          format: date-time
+          example: "2026-09-01T11:00:00+07:00"
+
+    Distribution:
+      type: object
+      required:
+        - id
+        - requestId
+        - packageId
+        - fieldOfficerId
+        - distributionStatus
+        - allocatedAt
+      properties:
+        id:
+          type: string
+          example: dst_88bAa99
+        requestId:
+          type: string
+          example: req_7Kq91Ab
+        packageId:
+          type: string
+          example: pkg_44Lk90a
+        fieldOfficerId:
+          type: string
+          example: ofc_55xYz12
+        distributionStatus:
+          type: string
+          enum: [assigned, in_transit, handed_over, failed_delivery]
+          description: |
+            Clients MUST treat an unrecognised value as 'in progress' and MUST NOT crash on it.
+          example: in_transit
+        allocatedAt:
+          type: string
+          format: date-time
+          example: "2026-09-01T12:00:00+07:00"
+
+    Handover:
+      type: object
+      required:
+        - id
+        - distributionId
+        - recipientNationalId
+        - handedOverAt
+        - status
+      properties:
+        id:
+          type: string
+          example: hnd_11Pp99Q
+        distributionId:
+          type: string
+          example: dst_88bAa99
+        recipientNationalId:
+          type: string
+          example: "3201012304950001"
+        fieldOfficerId:
+          type: string
+          example: ofc_55xYz12
+        handedOverAt:
+          type: string
+          format: date-time
+          example: "2026-09-01T14:30:00+07:00"
+        status:
+          type: string
+          enum: [confirmed, disputed, flagged]
+          description: |
+            Clients MUST treat an unrecognised value as 'in progress' and MUST NOT crash on it.
+          example: confirmed
+        recipientNotes:
+          type:
+            - string
+            - "null"
+          example: "Diterima langsung oleh kepala keluarga di tenda pengungsian 03."
+
+    Problem:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI stabil yang mengidentifikasi tipe kegagalan.
+          example: "https://bantuan-lapangan.internal/problems/aid-already-dispensed"
+        title:
+          type: string
+          description: Ringkasan singkat error yang konstan untuk tipe terkait.
+          example: "Aid Package Already Dispensed"
+        status:
+          type: integer
+          description: HTTP status code.
+          example: 409
+        detail:
+          type: string
+          description: Penjelasan kontekstual spesifik penyebab kegagalan.
+          example: "Bantuan untuk NIK 3201012304950001 sudah pernah diserahkan pada 2026-09-01T14:30:00+07:00."
+        instance:
+          type: string
+          description: URI path spesifik terjadinya request.
+          example: "/v1/handovers"
+        requestId:
+          type: string
+          example: req_7Kq91Ab
+        currentStatus:
+          type: string
+          example: handed_over
+        suggestedNextAction:
+          type: string
+          example: "Hubungi posko pusat jika data fisik penerima bantuan berselisih."
+
+  responses:
+    400BadRequest:
+      description: Parameter atau format request tidak sesuai sintaks.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://bantuan-lapangan.internal/problems/invalid-request-payload"
+            title: "Invalid Request Payload"
+            status: 400
+            detail: "Header Idempotency-Key wajib disertakan dengan format UUID v4 kanonik."
+            instance: "/v1/handovers"
+            suggestedNextAction: "Periksa kembali header dan format request payload."
+
+    404NotFound:
+      description: Resource entitas yang dituju tidak ditemukan pada server.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://bantuan-lapangan.internal/problems/resource-not-found"
+            title: "Resource Not Found"
+            status: 404
+            detail: "Permohonan dengan ID req_99999Zz tidak ditemukan di basis data posko."
+            instance: "/v1/assistance-requests/req_99999Zz"
+
+    409Conflict:
+      description: Konflik aturan bisnis atau penggunaan ulang Idempotency-Key dengan payload berbeda.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://bantuan-lapangan.internal/problems/aid-already-dispensed"
+            title: "Aid Package Already Dispensed"
+            status: 409
+            detail: "Paket distribusi dst_88bAa99 telah berstatus handed_over dan tidak dapat diserahkan kembali."
+            instance: "/v1/handovers"
+            requestId: req_7Kq91Ab
+            currentStatus: handed_over
+            suggestedNextAction: "Jangan ulangi penyerahan paket. Tampilkan informasi 'Bantuan Sudah Diterima' di antarmuka."
+
+    422UnprocessableEntity:
+      description: Request valid secara sintaks namun melanggar validasi semantik/domain.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://bantuan-lapangan.internal/problems/unapproved-assistance-request"
+            title: "Unapproved Assistance Request"
+            status: 422
+            detail: "Distribusi tidak dapat dibuat karena permohonan req_7Kq91Ab belum disetujui koordinator."
+            instance: "/v1/handovers"
+            currentStatus: submitted
+            suggestedNextAction: "Tunggu status permohonan disetujui oleh koordinator wilayah."
+
+    500ServerError:
+      description: Terjadi kegagalan tak terduga pada server posko logistik.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://bantuan-lapangan.internal/problems/internal-server-error"
+            title: "Internal Server Error"
+            status: 500
+            detail: "Terjadi kesalahan internal saat memproses transaksi logistik. Silakan coba kembali."
+            instance: "/v1/handovers"
+            suggestedNextAction: "Lakukan retry dengan exponential backoff."
