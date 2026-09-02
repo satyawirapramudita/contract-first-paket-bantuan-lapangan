@@ -2,12 +2,12 @@
 
 ## Anggota dan Role
 
-| Anggota | Role | Tanggung jawab |
-|---|---|---|
-| Dhimas | Contract Owner | Menyusun dan mereview `openapi.yaml` serta `CHANGELOG.md` |
-| Naya | Service Owner | Menentukan domain, resource, dan aturan bisnis |
-| Satya | Client Owner | Menganalisis client, idempotency, dan compatibility |
-| Tama | Integration Owner | Menangani error catalog, mock server, README, dan demonstrasi |
+| Anggota | NIM | Role | Tanggung jawab |
+|---|---|---|---|
+| Dhimas Putra Sulistio | 24/537952/PA/22811 | Contract Owner | Menyusun dan mereview `openapi.yaml` serta `CHANGELOG.md` |
+| Indratanaya Budiman | 24/534784/PA/22683 | Service Owner | Menentukan domain, resource, dan aturan bisnis |
+| Satya Wira Pramudita | 24/543649/PA/23102 | Client Owner | Menganalisis client, idempotency, dan compatibility |
+| Aloysius Pijar Hutama Indrianto | 24/534591/PA/22675| Integration Owner | Menangani error catalog, mock server, README, dan demonstrasi |
 
 ## Scope
 
