@@ -1,1 +1,9 @@
 node_modules/
+# Environment secrets
+service/.env
+
+# Node
+service/node_modules/
+
+# OS
+.DS_Store
