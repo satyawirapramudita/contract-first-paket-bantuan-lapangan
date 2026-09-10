@@ -120,3 +120,11 @@ curl -i -X POST "http://127.0.0.1:4010/v1/distributions/dst_4Lm82Qp/handover" \
 ## Contribution Rule
 
 Setiap anggota melakukan commit menggunakan identitas Git masing-masing. Implementasi service tidak boleh di-commit sebelum commit spesifikasi kontrak. Perubahan pada `openapi.yaml` harus direview oleh Contract Owner.
+
+
+## Live Deployment
+
+Service berjalan di: `https://paket-bantuan-lapangan.onrender.com`
+
+```bash
+curl https://paket-bantuan-lapangan.onrender.com/health
