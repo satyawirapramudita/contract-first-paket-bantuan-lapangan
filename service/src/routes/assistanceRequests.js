@@ -1,13 +1,61 @@
 // service/src/routes/assistanceRequests.js
 // Routes + handlers for /v1/assistance-requests
 // Five parts of every operation: Route → Validate → Work → Represent → Respond
-
+const { checkIdempotency } = require('../middleware/idempotency');
+const idempotencyStore = require('../store/idempotency');
+const { randomId } = require('../utils/id'); 
 const express = require('express');
 const router = express.Router();
 const { problem } = require('../problem');
 const store = require('../store/assistanceRequests');
 const { toAssistanceRequest } = require('../representations/assistanceRequests');
 const { validateCreate, validateListQuery } = require('../schemas/assistanceRequests');
+
+// -------------------------------------------------------
+// POST /v1/assistance-requests
+// -------------------------------------------------------
+router.post('/', checkIdempotency, async (req, res, next) => {
+  try {
+    // Part 2: Validate body (sekali, terpusat)
+    const valid = validateCreate(req.body);
+    if (!valid) {
+      return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
+        'Body request tidak sesuai schema yang didokumentasikan.',
+        req.path, { invalidFields: validateCreate.errors });
+    }
+
+    // Part 3: Work — domain rules
+    // (No 422 domain rules for create; 422 would be for referenced entity not existing)
+
+    const newId = randomId('req');
+    const record = {
+      id: newId,
+      ...req.body,
+      status: 'submitted',
+      urgency: req.body.urgency ?? 'medium',
+      requestedAt: new Date().toISOString(),
+    };
+    const row = await store.insert(record);
+
+    // Part 4+5: Represent & Respond 201 + Location header
+    const representation = toAssistanceRequest(row);
+
+    // Store idempotency response
+    await idempotencyStore.save(
+      res.locals.idempotencyKey,
+      res.locals.idempotencyBodyHash,
+      201,
+      representation
+    );
+
+    return res
+      .status(201)
+      .location(`/v1/assistance-requests/${newId}`)
+      .json(representation);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // -------------------------------------------------------
 // GET /v1/assistance-requests/:requestId  (single entity)
