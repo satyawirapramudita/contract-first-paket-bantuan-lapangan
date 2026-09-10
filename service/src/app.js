@@ -22,8 +22,8 @@ app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
 // --- Routes (mounted as phases are completed) ---
 app.use('/v1/assistance-requests', require('./routes/assistanceRequests'));
-// app.use('/v1/packages', require('./routes/packages'));
-// app.use('/v1/distributions', require('./routes/distributions'));
+app.use('/v1/packages', require('./routes/packages'));
+app.use('/v1/distributions', require('./routes/distributions'));
 // app.use('/v1/handovers', require('./routes/handovers'));
 
 // --- 404 for unknown routes ---
