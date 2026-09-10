@@ -1,0 +1,70 @@
+name: Contract Conformance CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  contract-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bantuan_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Step 2: Apply database structure from committed file
+      - name: Apply database schema
+        run: psql postgresql://postgres:postgres@localhost:5432/bantuan_test -f service/db/schema.sql
+
+      # Apply seed data for contract tests
+      - name: Apply seed data
+        run: psql postgresql://postgres:postgres@localhost:5432/bantuan_test -f service/db/seed.sql
+
+      # Step 3: Install dependencies
+      - name: Install Node.js dependencies
+        run: cd service && npm ci
+
+      # Step 4: Start service in background
+      - name: Start service
+        run: cd service && node src/app.js &
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bantuan_test
+          PORT: 3000
+          BASE_URL: http://localhost:3000
+          NODE_ENV: test
+
+      # Step 4 (cont): Wait for service to be ready via /health
+      - name: Wait for service to be ready
+        run: |
+          echo "Waiting for service..."
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+              echo "Service is ready!"
+              break
+            fi
+            echo "Attempt $i/15 — retrying in 2s..."
+            sleep 2
+          done
+          curl -sf http://localhost:3000/health || (echo "Service did not start" && exit 1)
+
+      # Step 5: Run contract conformance tests
+      - name: Run contract conformance tests
+        run: bash tests/contract/contract.test.sh
+        env:
+          BASE_URL: http://localhost:3000
