@@ -124,7 +124,10 @@ Setiap anggota melakukan commit menggunakan identitas Git masing-masing. Impleme
 
 ## Live Deployment
 
-Service berjalan di: `https://paket-bantuan-lapangan.onrender.com`
+Service berjalan di: `https://contract-first-paket-bantuan-lapangan-production.up.railway.app/`
 
 ```bash
-curl https://paket-bantuan-lapangan.onrender.com/health
+curl https://contract-first-paket-bantuan-lapangan-production.up.railway.app/v1/health
+https://contract-first-paket-bantuan-lapangan-production.up.railway.app/v1/assistance-requests
+https://contract-first-paket-bantuan-lapangan-production.up.railway.app/v1/distributions
+https://contract-first-paket-bantuan-lapangan-production.up.railway.app/v1/health
