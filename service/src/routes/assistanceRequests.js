@@ -76,7 +76,7 @@ router.get('/:requestId', requireScope('requests:read'), async (req, res, next) 
     if (!row || !(await mayReadRequest(req.principal, row))) {
       // "tidak ada" dan "bukan miliknya" dijawab identik
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Permohonan dengan ID ${requestId} tidak ditemukan di basis data posko.`,
+        'Permohonan tidak ditemukan di basis data posko.',
         instanceOf(req));
     }
 
