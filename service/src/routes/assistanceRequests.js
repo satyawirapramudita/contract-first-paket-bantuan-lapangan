@@ -1,36 +1,37 @@
 // service/src/routes/assistanceRequests.js
 // Routes + handlers for /v1/assistance-requests
 // Five parts of every operation: Route → Validate → Work → Represent → Respond
-const { checkIdempotency } = require('../middleware/idempotency');
-const idempotencyStore = require('../store/idempotency');
-const { randomId } = require('../utils/id'); 
 const express = require('express');
 const router = express.Router();
-const { problem } = require('../problem');
+const { problem, instanceOf } = require('../problem');
+const { requireScope } = require('../auth/require-scope');
+const { mayReadRequest } = require('../auth/ownership');
+const { checkIdempotency } = require('../middleware/idempotency');
+const idempotencyStore = require('../store/idempotency');
 const store = require('../store/assistanceRequests');
 const { toAssistanceRequest } = require('../representations/assistanceRequests');
 const { validateCreate, validateListQuery } = require('../schemas/assistanceRequests');
+const { randomId } = require('../utils/id');
 
 // -------------------------------------------------------
 // POST /v1/assistance-requests
 // -------------------------------------------------------
-router.post('/', checkIdempotency, async (req, res, next) => {
+router.post('/', requireScope('requests:write'), checkIdempotency, async (req, res, next) => {
   try {
     // Part 2: Validate body (sekali, terpusat)
     const valid = validateCreate(req.body);
     if (!valid) {
       return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
         'Body request tidak sesuai schema yang didokumentasikan.',
-        req.path, { invalidFields: validateCreate.errors });
+        instanceOf(req), { invalidFields: validateCreate.errors });
     }
 
     // Part 3: Work — domain rules
-    // (No 422 domain rules for create; 422 would be for referenced entity not existing)
-
     const newId = randomId('req');
     const record = {
       id: newId,
       ...req.body,
+      applicantSubject: req.principal.subject, // owner = authenticated principal
       status: 'submitted',
       urgency: req.body.urgency ?? 'medium',
       requestedAt: new Date().toISOString(),
@@ -40,7 +41,6 @@ router.post('/', checkIdempotency, async (req, res, next) => {
     // Part 4+5: Represent & Respond 201 + Location header
     const representation = toAssistanceRequest(row);
 
-    // Store idempotency response
     await idempotencyStore.save(
       res.locals.idempotencyKey,
       res.locals.idempotencyBodyHash,
@@ -60,7 +60,7 @@ router.post('/', checkIdempotency, async (req, res, next) => {
 // -------------------------------------------------------
 // GET /v1/assistance-requests/:requestId  (single entity)
 // -------------------------------------------------------
-router.get('/:requestId', async (req, res, next) => {
+router.get('/:requestId', requireScope('requests:read'), async (req, res, next) => {
   try {
     const { requestId } = req.params;
 
@@ -68,15 +68,16 @@ router.get('/:requestId', async (req, res, next) => {
     if (!/^req_[A-Za-z0-9]+$/.test(requestId)) {
       return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
         `ID permohonan '${requestId}' tidak sesuai format yang diharapkan (req_XXXXX).`,
-        req.path);
+        instanceOf(req));
     }
 
-    // Part 3: Work
+    // Part 3: Work — load the object, then Layer 3 object check
     const row = await store.findById(requestId);
-    if (!row) {
+    if (!row || !(await mayReadRequest(req.principal, row))) {
+      // "tidak ada" dan "bukan miliknya" dijawab identik
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
         `Permohonan dengan ID ${requestId} tidak ditemukan di basis data posko.`,
-        req.path);
+        instanceOf(req));
     }
 
     // Part 4: Represent  |  Part 5: Respond
@@ -89,22 +90,22 @@ router.get('/:requestId', async (req, res, next) => {
 // -------------------------------------------------------
 // GET /v1/assistance-requests  (collection + pagination)
 // -------------------------------------------------------
-router.get('/', async (req, res, next) => {
+router.get('/', requireScope('requests:read'), async (req, res, next) => {
   try {
     // Part 2: Validate query params
-    // Coerce limit to integer for AJV
     if (req.query.limit !== undefined) req.query.limit = parseInt(req.query.limit, 10);
 
     const valid = validateListQuery(req.query);
     if (!valid) {
       return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
         'Query parameter tidak valid.',
-        req.path, { invalidFields: validateListQuery.errors });
+        instanceOf(req), { invalidFields: validateListQuery.errors });
     }
 
-    // Part 3: Work
+    // Part 3: Work — koleksi dibatasi di dalam query, bukan setelahnya
     const { status, urgency, cursor, limit } = req.query;
-    const { data, hasMore, nextCursor } = await store.findAll({ status, urgency, cursor, limit });
+    const { data, hasMore, nextCursor } =
+      await store.findAllForPrincipal(req.principal, { status, urgency, cursor, limit });
 
     // Part 4+5: Represent & Respond
     return res.status(200).json({

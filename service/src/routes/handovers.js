@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { problem } = require('../problem');
+const { problem, instanceOf } = require('../problem');
+const { requireScope } = require('../auth/require-scope');
+const { mayHandover } = require('../auth/ownership');
 const { checkIdempotency } = require('../middleware/idempotency');
 const idempotencyStore = require('../store/idempotency');
 const store = require('../store/handovers');
@@ -9,23 +11,30 @@ const { validateCreate } = require('../schemas/handovers');
 const { randomId } = require('../utils/id');
 
 // POST /v1/handovers
-router.post('/', checkIdempotency, async (req, res, next) => {
+router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, res, next) => {
   try {
     // Part 2: Validate
     const valid = validateCreate(req.body);
     if (!valid) {
       return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
         'Body request tidak sesuai schema yang didokumentasikan.',
-        req.path, { invalidFields: validateCreate.errors });
+        instanceOf(req), { invalidFields: validateCreate.errors });
     }
 
     const { distributionId, recipientNationalId, handedOverAt, fieldOfficerId, recipientNotes } = req.body;
 
-    // Part 3: Work — cek distribution ada (404)
+    // Part 3: Work — load the object
     const dist = await store.findDistributionById(distributionId);
     if (!dist) {
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, req.path);
+        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
+    }
+
+    // Layer 3: object check SEBELUM perubahan apa pun disimpan.
+    // "tidak ada" dan "bukan tugas petugas ini" dijawab identik.
+    if (!mayHandover(req.principal, dist)) {
+      return problem(res, 404, 'resource-not-found', 'Resource Not Found',
+        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
     }
 
     // Part 3: Domain rule — cek sudah ada handover (409)
@@ -33,7 +42,7 @@ router.post('/', checkIdempotency, async (req, res, next) => {
     if (existingHandover) {
       return problem(res, 409, 'aid-already-dispensed', 'Aid Package Already Dispensed',
         `Paket distribusi ${distributionId} telah berstatus handed_over dan tidak dapat diserahkan kembali.`,
-        req.path, {
+        instanceOf(req), {
           requestId: dist.request_id,
           currentStatus: dist.distribution_status,
           suggestedNextAction: "Jangan ulangi penyerahan paket. Tampilkan informasi 'Bantuan Sudah Diterima' di antarmuka."
@@ -44,7 +53,7 @@ router.post('/', checkIdempotency, async (req, res, next) => {
     if (!['assigned', 'in_transit'].includes(dist.distribution_status)) {
       return problem(res, 422, 'invalid-state-transition', 'Invalid State Transition',
         `Distribusi ${distributionId} dalam status '${dist.distribution_status}' dan tidak dapat menerima handover.`,
-        req.path, { currentStatus: dist.distribution_status });
+        instanceOf(req), { currentStatus: dist.distribution_status });
     }
 
     // Create handover

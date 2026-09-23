@@ -6,6 +6,7 @@
 -- Assistance Requests
 CREATE TABLE IF NOT EXISTS assistance_requests (
     id               TEXT PRIMARY KEY,          -- format: req_XXXXXXX
+    applicant_subject TEXT NOT NULL,            -- Keycloak preferred_username pemilik
     applicant_national_id TEXT NOT NULL,
     applicant_name   TEXT NOT NULL,
     family_member_count INTEGER,
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS distributions (
     request_id          TEXT NOT NULL REFERENCES assistance_requests(id),
     package_id          TEXT NOT NULL REFERENCES packages(id),
     field_officer_id    TEXT NOT NULL,
+    field_officer_subject TEXT NOT NULL,        -- Keycloak preferred_username petugas
     distribution_status TEXT NOT NULL DEFAULT 'assigned',
     allocated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
