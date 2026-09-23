@@ -27,14 +27,14 @@ router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, 
     const dist = await store.findDistributionById(distributionId);
     if (!dist) {
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
+        'Distribusi tidak ditemukan.', instanceOf(req));
     }
 
     // Layer 3: object check SEBELUM perubahan apa pun disimpan.
     // "tidak ada" dan "bukan tugas petugas ini" dijawab identik.
     if (!mayHandover(req.principal, dist)) {
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
+        'Distribusi tidak ditemukan.', instanceOf(req));
     }
 
     // Part 3: Domain rule — cek sudah ada handover (409)

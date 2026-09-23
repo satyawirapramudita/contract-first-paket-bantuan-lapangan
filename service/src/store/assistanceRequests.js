@@ -11,13 +11,29 @@ async function findById(id) {
   return rows[0] ?? null;
 }
 
-async function findAll({ status, urgency, cursor, limit = 20 }) {
+// Visibility is constrained inside the query, never filtered afterwards.
+async function findAllForPrincipal(principal, { status, urgency, cursor, limit = 20 }) {
   const params = [];
   const conditions = [];
   let idx = 1;
 
   if (status) { conditions.push(`status = $${idx++}`); params.push(status); }
   if (urgency) { conditions.push(`urgency = $${idx++}`); params.push(urgency); }
+
+  if (principal.scopes.includes('requests:review') || principal.kind === 'service') {
+    // reviewer / service: seluruh permohonan
+  } else if (principal.scopes.includes('requests:write')) {
+    conditions.push(`applicant_subject = $${idx++}`);
+    params.push(principal.subject);
+  } else {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM distributions d
+               WHERE d.request_id = assistance_requests.id
+                 AND d.field_officer_subject = $${idx++})`
+    );
+    params.push(principal.subject);
+  }
+
   if (cursor) {
     // cursor = base64(requested_at:id) — decode for keyset pagination
     const decoded = Buffer.from(cursor, 'base64').toString('utf8');
@@ -47,15 +63,15 @@ async function findAll({ status, urgency, cursor, limit = 20 }) {
 async function insert(record) {
   const { rows } = await db.query(
     `INSERT INTO assistance_requests
-       (id, applicant_national_id, applicant_name, family_member_count,
+       (id, applicant_subject, applicant_national_id, applicant_name, family_member_count,
         target_location, required_package_type, status, urgency, requested_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      RETURNING *`,
-    [record.id, record.applicantNationalId, record.applicantName,
+    [record.id, record.applicantSubject, record.applicantNationalId, record.applicantName,
      record.familyMemberCount, record.targetLocation, record.requiredPackageType,
      record.status, record.urgency, record.requestedAt]
   );
   return rows[0];
 }
 
-module.exports = { findById, findAll, insert };
+module.exports = { findById, findAllForPrincipal, insert };

@@ -29,7 +29,7 @@ router.get('/:distributionId', requireScope('distributions:read'), async (req, r
     if (!row || !mayReadDistribution(req.principal, row)) {
       // "tidak ada" dan "bukan miliknya" dijawab identik
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Distribusi dengan ID ${distributionId} tidak ditemukan.`,
+        'Distribusi tidak ditemukan.',
         instanceOf(req));
     }
 
