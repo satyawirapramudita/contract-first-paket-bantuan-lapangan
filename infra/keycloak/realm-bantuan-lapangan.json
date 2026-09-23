@@ -1,0 +1,229 @@
+{
+  "realm": "bantuan-lapangan",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "pemohon" },
+      { "name": "koordinator" },
+      { "name": "petugas-gudang" },
+      { "name": "petugas-lapangan" }
+    ]
+  },
+  "clientScopes": [
+    {
+      "name": "requests:read",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
+    },
+    {
+      "name": "requests:write",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
+    },
+    {
+      "name": "requests:review",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
+    },
+    {
+      "name": "packages:read",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
+    },
+    {
+      "name": "distributions:read",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
+    },
+    {
+      "name": "handovers:write",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "web-posko",
+      "name": "Web Posko (public, PKCE)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "redirectUris": [
+        "http://localhost:5173/callback",
+        "https://web-posko.example/callback"
+      ],
+      "webOrigins": ["http://localhost:5173"],
+      "defaultClientScopes": [
+        "web-origins", "acr", "profile", "roles", "basic", "email",
+        "requests:read", "requests:write", "packages:read"
+      ],
+      "optionalClientScopes": [
+        "requests:review", "distributions:read", "handovers:write"
+      ],
+      "protocolMappers": [
+        {
+          "name": "api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "bantuan-lapangan-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "mobile-petugas",
+      "name": "Mobile Petugas Lapangan (public, PKCE)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "redirectUris": [
+        "com.bantuan.lapangan://callback",
+        "http://localhost:8100/callback"
+      ],
+      "webOrigins": ["http://localhost:8100"],
+      "defaultClientScopes": [
+        "web-origins", "acr", "profile", "roles", "basic", "email",
+        "requests:read", "distributions:read", "handovers:write"
+      ],
+      "optionalClientScopes": ["packages:read"],
+      "protocolMappers": [
+        {
+          "name": "api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "bantuan-lapangan-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "job-rekonsiliasi",
+      "name": "Job Rekonsiliasi (confidential)",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["distributions:read"],
+      "protocolMappers": [
+        {
+          "name": "api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "bantuan-lapangan-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "test-cli",
+      "name": "Test CLI (development only, direct access grants)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "defaultClientScopes": [
+        "profile", "email",
+        "requests:read", "requests:write", "requests:review",
+        "packages:read", "distributions:read", "handovers:write"
+      ],
+      "protocolMappers": [
+        {
+          "name": "api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "bantuan-lapangan-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "pemohon-a",
+      "enabled": true,
+      "email": "pemohon-a@example.test",
+      "emailVerified": true,
+      "firstName": "Pemohon",
+      "lastName": "A",
+      "credentials": [{ "type": "password", "value": "LabOnly2026!", "temporary": false }],
+      "realmRoles": ["pemohon"]
+    },
+    {
+      "username": "pemohon-b",
+      "enabled": true,
+      "email": "pemohon-b@example.test",
+      "emailVerified": true,
+      "firstName": "Pemohon",
+      "lastName": "B",
+      "credentials": [{ "type": "password", "value": "LabOnly2026!", "temporary": false }],
+      "realmRoles": ["pemohon"]
+    },
+    {
+      "username": "petugas-a",
+      "enabled": true,
+      "email": "petugas-a@example.test",
+      "emailVerified": true,
+      "firstName": "Petugas",
+      "lastName": "A",
+      "credentials": [{ "type": "password", "value": "LabOnly2026!", "temporary": false }],
+      "realmRoles": ["petugas-lapangan"]
+    },
+    {
+      "username": "petugas-b",
+      "enabled": true,
+      "email": "petugas-b@example.test",
+      "emailVerified": true,
+      "firstName": "Petugas",
+      "lastName": "B",
+      "credentials": [{ "type": "password", "value": "LabOnly2026!", "temporary": false }],
+      "realmRoles": ["petugas-lapangan"]
+    },
+    {
+      "username": "koordinator-a",
+      "enabled": true,
+      "email": "koordinator-a@example.test",
+      "emailVerified": true,
+      "firstName": "Koordinator",
+      "lastName": "A",
+      "credentials": [{ "type": "password", "value": "LabOnly2026!", "temporary": false }],
+      "realmRoles": ["koordinator"]
+    },
+    {
+      "username": "gudang-a",
+      "enabled": true,
+      "email": "gudang-a@example.test",
+      "emailVerified": true,
+      "firstName": "Petugas Gudang",
+      "lastName": "A",
+      "credentials": [{ "type": "password", "value": "LabOnly2026!", "temporary": false }],
+      "realmRoles": ["petugas-gudang"]
+    }
+  ]
+}
