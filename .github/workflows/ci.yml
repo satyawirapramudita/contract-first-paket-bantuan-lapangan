@@ -26,6 +26,7 @@ jobs:
           --health-retries 5
 
     env:
+      PORT: 3000
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bantuan_test
       OIDC_ISSUER: http://127.0.0.1:9999
       OIDC_JWKS_URI: http://127.0.0.1:9999/jwks.json
@@ -60,11 +61,13 @@ jobs:
           curl -sf "$OIDC_JWKS_URI" || (cat /tmp/jwks.log && exit 1)
 
       - name: Start service
-        env:
-          PORT: 3000
         run: |
           cd service && node src/app.js > /tmp/service.log 2>&1 &
-          sleep 2
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:3000/health > /dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -sf http://localhost:3000/health || (echo "=== SERVICE LOG ===" && cat /tmp/service.log && exit 1)
 
       - name: Run contract conformance tests
         run: bash tests/contract/contract.test.sh
