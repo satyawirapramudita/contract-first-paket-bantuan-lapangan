@@ -9,9 +9,10 @@ All errors use `application/problem+json` and the Problem Details fields `type`,
 | `/problems/already-distributed` | 409 | Request sudah disalurkan | `distributionId` | Ambil status terbaru |
 | `/problems/idempotency-key-reuse` | 409 | Key yang sama digunakan dengan body berbeda | `originalRequestHash` | Jangan retry dengan key tersebut |
 | `/problems/invalid-state-transition` | 409 | Transisi status tidak valid | `currentStatus` | Ambil resource terbaru |
-| `/problems/unauthorized` | 401 | Kredensial tidak valid atau tidak ada | `authenticationScheme` | Minta autentikasi |
-| `/problems/forbidden` | 403 | Role tidak memiliki izin | `requiredRole` | Jangan retry; minta tindakan pengguna |
-| `/problems/not-found` | 404 | Resource tidak ditemukan | Tidak ada | Periksa identifier |
+| `/problems/unauthenticated` | 401 | Token tidak ada, tidak dapat diverifikasi, atau kedaluwarsa | `suggestedNextAction` | Minta access token baru lalu retry. Header `WWW-Authenticate: Bearer error="invalid_token"` |
+| `/problems/insufficient-scope` | 403 | Token valid tetapi tidak membawa scope yang dibutuhkan operasi | `requiredScopes` | Jangan retry; minta token dengan scope yang benar. Header `WWW-Authenticate: Bearer error="insufficient_scope"` |
+| `/problems/resource-not-found` | 404 | Resource tidak ditemukan, ATAU ada tetapi bukan milik pemanggil | Tidak ada | Periksa identifier. Kedua kondisi dijawab identik agar identifier tidak dapat dienumerasi |
+
 | `/problems/service-unavailable` | 503 | Service sementara tidak tersedia | `retryAfterSeconds` | Retry dengan exponential backoff |
 
 ## Example: Package Unavailable
