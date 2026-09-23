@@ -25,7 +25,39 @@ The service refuses to start if `DATABASE_URL` or `PORT` are missing from the en
 | Create assistance request | POST | `/v1/assistance-requests` | service | ✅ Done |
 | List packages | GET | `/v1/packages` | service | ✅ Done |
 | List distributions | GET | `/v1/distributions` | service | ✅ Done |
-| Confirm handover | POST | `/v1/handovers` | service | ✅ Done |
+| Confirm handover | POST | `/v1/handovers` | service | ✅ Done || Confirm handover | POST | `/v1/handovers` | service | ✅ Done |
+| Get single distribution | GET | `/v1/distributions/{distributionId}` | service | ✅ Done |
+
+## Scope Vocabulary
+
+Access token wajib membawa scope yang dideklarasikan pada operasi terkait.
+String scope di bawah harus sama persis dengan yang ada di `openapi.yaml`,
+realm Keycloak, dan argumen `requireScope()` di routes.
+
+| Scope | Mengizinkan | Pemohon | Koordinator | Petugas Gudang | Petugas Lapangan | Job |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| `requests:read` | Melihat permohonan yang terlihat oleh pemanggil | milik sendiri | semua | — | yang ditugaskan | — |
+| `requests:write` | Mengajukan permohonan milik sendiri | ya | — | — | — | — |
+| `requests:review` | Meninjau dan menyetujui/menolak permohonan | — | ya | — | — | — |
+| `packages:read` | Melihat inventaris paket gudang | — | ya | ya | ya | — |
+| `distributions:read` | Melihat alokasi distribusi | — | semua | — | milik sendiri | semua |
+| `handovers:write` | Mengonfirmasi serah terima | — | — | — | milik sendiri | — |
+
+Pemetaan operasi → scope:
+
+| Operation | Scope |
+| :--- | :--- |
+| `GET /v1/assistance-requests` | `requests:read` |
+| `GET /v1/assistance-requests/{requestId}` | `requests:read` |
+| `POST /v1/assistance-requests` | `requests:write` |
+| `GET /v1/packages` | `packages:read` |
+| `GET /v1/distributions` | `distributions:read` |
+| `GET /v1/distributions/{distributionId}` | `distributions:read` |
+| `POST /v1/handovers` | `handovers:write` |
+| `GET /health` | publik (`security: []`) |
+
+## Failure Catalogue
+
 
 ## Failure Catalogue
 

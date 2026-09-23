@@ -23,6 +23,10 @@ The following changes are not compatible in v1:
 - Changing a field type.
 - Narrowing an accepted value range.
 - Changing the meaning of a field without changing its name.
+- Requiring authentication (an access token with a scope) on an operation that
+  previously could be called without one. This is a breaking change and was
+  recorded in `CHANGELOG.md` as `1.1.0`.
+
 
 ## Unknown Response Fields
 
