@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Field Aid Package Distribution API
-  version: 0.1.0
+  version: 1.1.0
   description: |
     API spesifikasi sistem penyaluran paket bantuan logistik lapangan mulai dari pengajuan permohonan, peninjauan kelayakan, penyiapan paket gudang, hingga serah terima fisik di lapangan.
     
@@ -16,9 +16,35 @@ servers:
     description: Local Mock Development Server
 
 security:
-  - BearerAuth: []
+  - oauth2: [requests:read]
 
 paths:
+  /health:
+    servers:
+      - url: https://bantuan-lapangan.internal
+      - url: http://127.0.0.1:4010
+    get:
+      summary: Health check service
+      description: |
+        Endpoint publik di luar prefix /v1. Platform hosting memanggil endpoint ini
+        tanpa token, sehingga security-nya sengaja dikosongkan.
+      operationId: health
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service berjalan.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
   /assistance-requests:
     get:
       summary: Daftar permohonan paket bantuan
@@ -26,6 +52,8 @@ paths:
       operationId: listAssistanceRequests
       tags:
         - Assistance Requests
+      security:
+        - oauth2: [requests:read]
       parameters:
         - name: status
           in: query
@@ -91,6 +119,10 @@ paths:
                         example: cur_9Kz72aBc
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
         '500':
           $ref: '#/components/responses/500ServerError'
 
@@ -102,6 +134,8 @@ paths:
       operationId: createAssistanceRequest
       tags:
         - Assistance Requests
+      security:
+        - oauth2: [requests:write]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKeyHeader'
       requestBody:
@@ -143,6 +177,10 @@ paths:
                 $ref: '#/components/schemas/AssistanceRequest'
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
         '409':
           $ref: '#/components/responses/409Conflict'
         '422':
@@ -157,6 +195,8 @@ paths:
       operationId: getAssistanceRequest
       tags:
         - Assistance Requests
+      security:
+        - oauth2: [requests:read]
       parameters:
         - name: requestId
           in: path
@@ -172,6 +212,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssistanceRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
         '404':
           $ref: '#/components/responses/404NotFound'
         '500':
@@ -184,6 +228,8 @@ paths:
       operationId: listPackages
       tags:
         - Packages
+      security:
+        - oauth2: [packages:read]
       responses:
         '200':
           description: Daftar paket bantuan berhasil dimuat.
@@ -200,6 +246,10 @@ paths:
                       $ref: '#/components/schemas/Package'
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
         '500':
           $ref: '#/components/responses/500ServerError'
 
@@ -210,6 +260,8 @@ paths:
       operationId: listDistributions
       tags:
         - Distributions
+      security:
+        - oauth2: [distributions:read]
       responses:
         '200':
           description: Daftar alokasi distribusi berhasil dimuat.
@@ -226,6 +278,45 @@ paths:
                       $ref: '#/components/schemas/Distribution'
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+
+  /distributions/{distributionId}:
+    get:
+      summary: Detail alokasi distribusi paket bantuan
+      description: Mengambil satu alokasi distribusi. Pemanggil hanya dapat membaca distribusi miliknya.
+      operationId: getDistribution
+      tags:
+        - Distributions
+      security:
+        - oauth2: [distributions:read]
+      parameters:
+        - name: distributionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Opaque ID distribusi yang diterbitkan server.
+          example: dst_88bAa99
+      responses:
+        '200':
+          description: Data distribusi ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Distribution'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
         '500':
           $ref: '#/components/responses/500ServerError'
 
@@ -240,6 +331,8 @@ paths:
       operationId: confirmHandover
       tags:
         - Handover
+      security:
+        - oauth2: [handovers:write]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKeyHeader'
       requestBody:
@@ -281,6 +374,10 @@ paths:
                 $ref: '#/components/schemas/Handover'
         '400':
           $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
         '404':
           $ref: '#/components/responses/404NotFound'
         '409':
@@ -292,11 +389,28 @@ paths:
 
 components:
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Standar autentikasi token JWT untuk akses API posko logistik.
+    oauth2:
+      type: oauth2
+      description: |
+        Access token diterbitkan oleh Keycloak realm `bantuan-lapangan`.
+        Public client (web, mobile) memakai Authorization Code + PKCE tanpa client secret.
+        Ganti host di bawah dengan URL Keycloak Railway setelah deploy.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://bantuan-auth.up.railway.app/realms/bantuan-lapangan/protocol/openid-connect/auth
+          tokenUrl: https://bantuan-auth.up.railway.app/realms/bantuan-lapangan/protocol/openid-connect/token
+          refreshUrl: https://bantuan-auth.up.railway.app/realms/bantuan-lapangan/protocol/openid-connect/token
+          scopes:
+            requests:read: Melihat permohonan bantuan yang terlihat oleh pemanggil
+            requests:write: Mengajukan permohonan bantuan milik sendiri
+            requests:review: Meninjau dan menyetujui/menolak permohonan
+            packages:read: Melihat inventaris paket gudang
+            distributions:read: Melihat alokasi distribusi yang terlihat oleh pemanggil
+            handovers:write: Mengonfirmasi serah terima paket di lapangan
+        clientCredentials:
+          tokenUrl: https://bantuan-auth.up.railway.app/realms/bantuan-lapangan/protocol/openid-connect/token
+          scopes:
+            distributions:read: Job rekonsiliasi membaca seluruh distribusi
 
   parameters:
     IdempotencyKeyHeader:
@@ -510,8 +624,33 @@ components:
             instance: "/v1/handovers"
             suggestedNextAction: "Periksa kembali header dan format request payload."
 
+    401Unauthorized:
+      description: Token tidak ada, tidak dapat diverifikasi, atau sudah kedaluwarsa.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string }
+          example: 'Bearer error="invalid_token"'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    403Forbidden:
+      description: Token valid tetapi tidak membawa scope yang dibutuhkan operasi ini.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string }
+          example: 'Bearer error="insufficient_scope", scope="handovers:write"'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
     404NotFound:
-      description: Resource entitas yang dituju tidak ditemukan pada server.
+      description: |
+        Resource tidak ditemukan, ATAU resource ada tetapi tidak dapat diakses oleh pemanggil.
+        Kedua kondisi dijawab identik (status, tipe, dan body) agar identifier tidak dapat
+        dienumerasi. Field `instance` memakai pola route, bukan ID yang diminta.
       content:
         application/problem+json:
           schema:
@@ -521,7 +660,7 @@ components:
             title: "Resource Not Found"
             status: 404
             detail: "Permohonan dengan ID req_99999Zz tidak ditemukan di basis data posko."
-            instance: "/v1/assistance-requests/req_99999Zz"
+            instance: "/v1/assistance-requests/{requestId}"
 
     409Conflict:
       description: Konflik aturan bisnis atau penggunaan ulang Idempotency-Key dengan payload berbeda.
