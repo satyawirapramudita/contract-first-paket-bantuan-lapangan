@@ -7,6 +7,7 @@ const { checkIdempotency } = require('../middleware/idempotency');
 const idempotencyStore = require('../store/idempotency');
 const store = require('../store/handovers');
 const { toHandover } = require('../representations/handovers');
+const { toDistribution } = require('../representations/distributions');
 const { validateCreate } = require('../schemas/handovers');
 const { randomId } = require('../utils/id');
 
@@ -15,7 +16,14 @@ const { generateETag } = require('../utils/etag');
 // POST /v1/handovers
 router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, res, next) => {
   try {
-    // Validasi payload ...
+    // Part 2: Validate body
+    const valid = validateCreate(req.body);
+    if (!valid) {
+      return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
+        'Body request tidak sesuai schema yang didokumentasikan.',
+        instanceOf(req), { invalidFields: validateCreate.errors });
+    }
+
     const { distributionId, recipientNationalId, handedOverAt, fieldOfficerId, recipientNotes } = req.body;
 
     const dist = await store.findDistributionById(distributionId);
@@ -44,6 +52,7 @@ router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, 
       return problem(res, 409, 'aid-already-dispensed', 'Aid Package Already Dispensed',
         `Paket distribusi ${distributionId} telah berstatus handed_over dan tidak dapat diserahkan kembali.`,
         instanceOf(req), {
+          requestId: dist.request_id,
           currentStatus: dist.distribution_status,
           suggestedNextAction: 'Jangan ulangi penyerahan paket. Tampilkan informasi Bantuan Sudah Diterima.'
         });
@@ -52,7 +61,7 @@ router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, 
     if (!['assigned', 'in_transit'].includes(dist.distribution_status)) {
       return problem(res, 422, 'invalid-state-transition', 'Invalid State Transition',
         `Distribusi ${distributionId} dalam status '${dist.distribution_status}' dan tidak dapat menerima handover.`,
-        instanceOf(req));
+        instanceOf(req), { currentStatus: dist.distribution_status });
     }
 
     // Eksekusi mutasi
