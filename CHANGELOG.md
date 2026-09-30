@@ -3,6 +3,13 @@
 All notable changes to the API contract of the Field Aid Distribution System will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning and URI-path versioning (/v1/).
 
+## [1.2.0] - 2026-09-30
+### Added
+- Dukungan HTTP Caching dan Conditional Reads: header parameter `If-None-Match` dan respons `304 Not Modified` pada operasi polling `GET /v1/distributions` dan `GET /v1/assistance-requests`.
+- Dukungan Concurrency Control dan Conditional Writes: header parameter `If-Match` dan respons `412 Precondition Failed` pada mutasi status `POST /v1/handovers` untuk mencegah *lost updates*.
+- Header respons `ETag` pada representasi distribusi dan permohonan bantuan.
+- Dokumentasi pemetaan alur kerja aplikasi web (A.1) pada `docs/workflow-scope.md`.
+
 ## [1.1.0] - 2026-09-19
 ### Changed - BREAKING
 - Seluruh operasi `/v1/**` kini memerlukan OAuth 2.0 access token dengan scope yang
