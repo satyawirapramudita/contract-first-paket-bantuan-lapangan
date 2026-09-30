@@ -3,15 +3,18 @@
 
 const { config } = require('./config');
 const express = require('express');
+const { corsMiddleware } = require('./middleware/cors');
 const { problem } = require('./problem');
 const { authenticate } = require('./auth/authenticate');
 const { logger } = require('./logger');
 
 const app = express();
+app.use(corsMiddleware); // WAJIB sebelum middleware parsing dan routing
 app.use(express.json());
 
-// --- Health endpoint (public; no dependency check) ---
+// --- Health endpoint ---
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
+
 
 // --- Layer 1: authentication for every /v1 route ---
 // Sets req.principal (null when anonymous); routes enforce what follows.
