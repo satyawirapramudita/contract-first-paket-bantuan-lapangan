@@ -38,6 +38,27 @@ Semua operasi `/v1/**` memerlukan `Authorization: Bearer <access token>` dengan
 scope yang dideklarasikan pada operasi tersebut di `openapi.yaml`. Endpoint
 `/health` bersifat publik.
 
+## Session 5 & 6 — Web Application (Browser Client)
+
+### 1. Deployed Application URL
+- **Web Application Client**: `https://web-bantuan-lapangan.vercel.app` (atau Railway)
+- **Backend API Service**: `https://contract-first-paket-bantuan-lapangan-production.up.railway.app`
+- **Keycloak Auth Server**: `https://bantuan-auth.up.railway.app`
+
+### 2. Akun Uji Demonstrasi (Session 7 Rehearsal Accounts)
+| Username | Role | Scope Utama | Penggunaan Demo |
+|---|---|---|---|
+| `pemohon-a` | `pemohon` | `requests:read`, `requests:write` | Demo Workflow 1 (Pengajuan & pantau bantuan) & Uji Console Attack |
+| `petugas-a` | `petugas-lapangan` | `requests:read`, `distributions:read`, `handovers:write` | Demo Workflow 2 (Handover & uji konflik 412 di dua jendela) |
+
+*Password seluruh akun demo:* `LabOnly2026!`
+
+### 3. Catatan Penyimpanan Sesi (Session Storage Decision - A.3 item 5)
+Aplikasi menyimpan *access token* secara eksklusif di dalam **in-memory React state** selama runtime aplikasi berjalan dan **tidak pernah menyimpannya di `localStorage` atau `sessionStorage`**. Pilihan ini diambil untuk mengeliminasi risiko pencurian token melalui celah *Cross-Site Scripting* (XSS) di mana seluruh skrip pihak ketiga pada browser dapat membaca `localStorage`. Konsekuensi keamanan dari keputusan ini adalah saat halaman direfresh secara keras (*hard reload*), aplikasi akan meminta autentikasi ulang atau memanfaatkan *silent refresh* OAuth 2.0 PKCE.
+
+### 4. Tabel Alur Kerja Pengguna (A.1 Workflow Scope)
+Lihat tabel lengkap di `docs/workflow-scope.md`.
+
 ## Repository Structure
 
 ```text
@@ -67,6 +88,8 @@ docs/
   compatibility-policy.md
   mock-demo.md
   session-4-checklist.md        ← checklist demo + bukti red/green
+  session-5-checklist.md        ← checklist verifikasi session 5 & 6
+  workflow-scope.md             ← pemetaan alur kerja pengguna A.1
 service/
   README.md                     ← operation table, scope, ownership, failure catalogue
   .env.example
@@ -87,6 +110,7 @@ service/
     utils/
 clients/
   web/
+    vercel.json
   mobile/
   device/
   mcp/
@@ -96,6 +120,10 @@ tests/
   authz/
     authz.test.js
     run.sh
+  service/
+    conditional.test.js
+  browser/
+    console-attack.md
   helpers/
     jwks-server.js
     token.js

@@ -63,10 +63,13 @@
       "serviceAccountsEnabled": false,
       "attributes": { "pkce.code.challenge.method": "S256" },
       "redirectUris": [
-        "http://localhost:5173/callback",
-        "https://web-posko.example/callback"
+        "http://localhost:5173/*",
+        "https://web-bantuan-lapangan.vercel.app/*"
       ],
-      "webOrigins": ["http://localhost:5173"],
+      "webOrigins": [
+        "http://localhost:5173",
+        "https://web-bantuan-lapangan.vercel.app"
+      ],
       "defaultClientScopes": [
         "web-origins", "acr", "profile", "roles", "basic", "email",
         "requests:read", "requests:write", "packages:read"
