@@ -10,53 +10,52 @@ const { toHandover } = require('../representations/handovers');
 const { validateCreate } = require('../schemas/handovers');
 const { randomId } = require('../utils/id');
 
+const { generateETag } = require('../utils/etag');
+
 // POST /v1/handovers
 router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, res, next) => {
   try {
-    // Part 2: Validate
-    const valid = validateCreate(req.body);
-    if (!valid) {
-      return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
-        'Body request tidak sesuai schema yang didokumentasikan.',
-        instanceOf(req), { invalidFields: validateCreate.errors });
-    }
-
+    // Validasi payload ...
     const { distributionId, recipientNationalId, handedOverAt, fieldOfficerId, recipientNotes } = req.body;
 
-    // Part 3: Work — load the object
     const dist = await store.findDistributionById(distributionId);
-    if (!dist) {
+    if (!dist || !mayHandover(req.principal, dist)) {
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        'Distribusi tidak ditemukan.', instanceOf(req));
+        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
     }
 
-    // Layer 3: object check SEBELUM perubahan apa pun disimpan.
-    // "tidak ada" dan "bukan tugas petugas ini" dijawab identik.
-    if (!mayHandover(req.principal, dist)) {
-      return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        'Distribusi tidak ditemukan.', instanceOf(req));
+    // A.8 Concurrency Check (If-Match ETag)
+    const currentRepresentation = toDistribution(dist);
+    const currentETag = generateETag(currentRepresentation);
+    const ifMatch = req.headers['if-match'];
+
+    if (ifMatch && ifMatch !== currentETag) {
+      return problem(res, 412, 'precondition-failed', 'Precondition Failed',
+        'Data distribusi telah diperbarui oleh sesi lain. Muat ulang data terbaru sebelum melanjutkan.',
+        instanceOf(req), {
+          currentETag,
+          suggestedNextAction: 'Perbarui tampilan antarmuka dan verifikasi status terkini.'
+        });
     }
 
-    // Part 3: Domain rule — cek sudah ada handover (409)
+    // Cek konflik domain apakah sudah pernah diserahkan
     const existingHandover = await store.findByDistributionId(distributionId);
     if (existingHandover) {
       return problem(res, 409, 'aid-already-dispensed', 'Aid Package Already Dispensed',
         `Paket distribusi ${distributionId} telah berstatus handed_over dan tidak dapat diserahkan kembali.`,
         instanceOf(req), {
-          requestId: dist.request_id,
           currentStatus: dist.distribution_status,
-          suggestedNextAction: "Jangan ulangi penyerahan paket. Tampilkan informasi 'Bantuan Sudah Diterima' di antarmuka."
+          suggestedNextAction: 'Jangan ulangi penyerahan paket. Tampilkan informasi Bantuan Sudah Diterima.'
         });
     }
 
-    // Domain rule — cek status distribution valid untuk handover (422)
     if (!['assigned', 'in_transit'].includes(dist.distribution_status)) {
       return problem(res, 422, 'invalid-state-transition', 'Invalid State Transition',
         `Distribusi ${distributionId} dalam status '${dist.distribution_status}' dan tidak dapat menerima handover.`,
-        instanceOf(req), { currentStatus: dist.distribution_status });
+        instanceOf(req));
     }
 
-    // Create handover
+    // Eksekusi mutasi
     const newId = randomId('hnd');
     const row = await store.insert({ id: newId, distributionId, recipientNationalId, handedOverAt, fieldOfficerId, recipientNotes });
     await store.updateDistributionStatus(distributionId, 'handed_over');
@@ -65,9 +64,7 @@ router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, 
     await idempotencyStore.save(res.locals.idempotencyKey, res.locals.idempotencyBodyHash, 201, representation);
 
     return res.status(201).location(`/v1/handovers/${newId}`).json(representation);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

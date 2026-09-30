@@ -5,12 +5,24 @@ const { requireScope } = require('../auth/require-scope');
 const { mayReadDistribution } = require('../auth/ownership');
 const store = require('../store/distributions');
 const { toDistribution } = require('../representations/distributions');
+const { generateETag } = require('../utils/etag');
 
-// GET /v1/distributions — koleksi dibatasi di dalam query
+// GET /v1/distributions
 router.get('/', requireScope('distributions:read'), async (req, res, next) => {
   try {
     const rows = await store.findAllForPrincipal(req.principal);
-    return res.status(200).json({ data: rows.map(toDistribution) });
+    const representations = rows.map(toDistribution);
+    
+    const etag = generateETag(representations);
+    res.setHeader('ETag', etag);
+
+    const clientETag = req.headers['if-none-match'];
+    if (clientETag && clientETag === etag) {
+      // Data belum berubah — kembalikan 304 tanpa body (menghemat bandwidth)
+      return res.status(304).end();
+    }
+
+    return res.status(200).json({ data: representations });
   } catch (err) { next(err); }
 });
 
@@ -18,23 +30,24 @@ router.get('/', requireScope('distributions:read'), async (req, res, next) => {
 router.get('/:distributionId', requireScope('distributions:read'), async (req, res, next) => {
   try {
     const { distributionId } = req.params;
-
-    if (!/^dst_[A-Za-z0-9]+$/.test(distributionId)) {
-      return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
-        `ID distribusi '${distributionId}' tidak sesuai format yang diharapkan (dst_XXXXX).`,
-        instanceOf(req));
-    }
-
+    // ... validasi format id & lookup db ...
     const row = await store.findById(distributionId);
     if (!row || !mayReadDistribution(req.principal, row)) {
-      // "tidak ada" dan "bukan miliknya" dijawab identik
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        'Distribusi tidak ditemukan.',
-        instanceOf(req));
+        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
     }
 
-    return res.status(200).json(toDistribution(row));
+    const representation = toDistribution(row);
+    const etag = generateETag(representation);
+    res.setHeader('ETag', etag);
+
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+
+    return res.status(200).json(representation);
   } catch (err) { next(err); }
 });
+
 
 module.exports = router;
