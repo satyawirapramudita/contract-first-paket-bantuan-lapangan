@@ -2,7 +2,7 @@
 // Single module owning the base URL, auth token injection, Problem Details parsing,
 // ETag bookkeeping across polls, and 401/403/404/412 handling.
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL !== undefined ? import.meta.env.VITE_API_BASE_URL : '';
 
 // ETag storage across re-renders & poll cycles (A.7)
 const etagStore = new Map();
