@@ -25,10 +25,20 @@ export function PackageInventory() {
         });
       }
     } catch (err) {
-      setViewState({
-        kind: 'error',
-        problem: err
-      });
+      if (err.status === 403) {
+        setViewState({
+          kind: 'error',
+          problem: {
+            title: 'Akses Ditolak (403 Forbidden)',
+            detail: 'Halaman inventaris gudang memerlukan wewenang Koordinator / Petugas Gudang (scope "packages:read").'
+          }
+        });
+      } else {
+        setViewState({
+          kind: 'error',
+          problem: err
+        });
+      }
     }
   };
 

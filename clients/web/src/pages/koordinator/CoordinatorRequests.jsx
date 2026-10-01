@@ -32,10 +32,20 @@ export function CoordinatorRequests() {
         });
       }
     } catch (err) {
-      setViewState({
-        kind: 'error',
-        problem: err
-      });
+      if (err.status === 403) {
+        setViewState({
+          kind: 'error',
+          problem: {
+            title: 'Akses Ditolak (403 Forbidden)',
+            detail: 'Halaman monitoring seluruh permohonan memerlukan wewenang Koordinator Posko (scope "requests:review").'
+          }
+        });
+      } else {
+        setViewState({
+          kind: 'error',
+          problem: err
+        });
+      }
     }
   };
 

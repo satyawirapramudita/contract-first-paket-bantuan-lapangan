@@ -32,7 +32,11 @@ export function AuthProvider({ children }) {
 
   const loginAs = (userObj) => {
     setSession(userObj);
-    const returnUrl = location.state?.from || (userObj.role === 'petugas-lapangan' ? '/distributions' : '/requests');
+    const defaultUrl =
+      userObj.role === 'petugas-lapangan' ? '/distributions' :
+      userObj.role === 'koordinator' ? '/coordinator/requests' :
+      '/requests';
+    const returnUrl = location.state?.from || defaultUrl;
     navigate(returnUrl, { replace: true });
   };
 
