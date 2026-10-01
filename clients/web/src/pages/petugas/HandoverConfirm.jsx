@@ -52,10 +52,13 @@ export function HandoverConfirm() {
         // A.8 PENTING: Tangani 412 sebagai kondisi normal, bukan generic error
         setConflictNotice('Paket ini baru saja diserahterimakan oleh petugas lain atau status telah berubah di posko.');
         await loadData(); // Segarkan data lokal ke versi terbaru
+      } else if (err.status === 409) {
+        setConflictNotice(err.detail || 'Paket distribusi ini telah diserahkan di lapangan dan tidak dapat diserahkan kembali.');
+        await loadData();
       } else if (err.status === 400 && err.invalidFields) {
         setFieldErrors(err.invalidFields); // A.6: Letakkan error pada field form
       } else {
-        alert(err.detail || 'Gagal menyimpan serah terima');
+        setConflictNotice(err.detail || err.message || 'Gagal menyimpan serah terima.');
       }
     } finally {
       setInFlight(false);
