@@ -12,6 +12,14 @@ export function AuthProvider({ children }) {
   const location = useLocation();
 
   useEffect(() => {
+    // Expose in-memory token getter for A.9 console test verification
+    if (typeof window !== 'undefined') {
+      window.__bantuan = {
+        getToken: () => session?.token ?? null,
+        getSession: () => session
+      };
+    }
+
     configureApiAuth(
       () => session?.token ?? null,
       () => {

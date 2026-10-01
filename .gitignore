@@ -14,3 +14,7 @@ service/node_modules/
 
 # OS
 .DS_Store
+
+# Web client build output
+clients/web/dist/
+dist/
