@@ -28,8 +28,9 @@ router.post('/', requireScope('handovers:write'), checkIdempotency, async (req, 
 
     const dist = await store.findDistributionById(distributionId);
     if (!dist || !mayHandover(req.principal, dist)) {
+      // "tidak ada" dan "bukan tugas petugas ini" dijawab identik
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
+        'Distribusi tidak ditemukan.', instanceOf(req));
     }
 
     // A.8 Concurrency Check (If-Match ETag)

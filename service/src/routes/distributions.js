@@ -30,11 +30,18 @@ router.get('/', requireScope('distributions:read'), async (req, res, next) => {
 router.get('/:distributionId', requireScope('distributions:read'), async (req, res, next) => {
   try {
     const { distributionId } = req.params;
-    // ... validasi format id & lookup db ...
+
+    if (!/^dst_[A-Za-z0-9]+$/.test(distributionId)) {
+      return problem(res, 400, 'invalid-request-payload', 'Invalid Request Payload',
+        `ID distribusi '${distributionId}' tidak sesuai format yang diharapkan (dst_XXXXX).`,
+        instanceOf(req));
+    }
+
     const row = await store.findById(distributionId);
     if (!row || !mayReadDistribution(req.principal, row)) {
+      // "tidak ada" dan "bukan miliknya" dijawab identik
       return problem(res, 404, 'resource-not-found', 'Resource Not Found',
-        `Distribusi dengan ID ${distributionId} tidak ditemukan.`, instanceOf(req));
+        'Distribusi tidak ditemukan.', instanceOf(req));
     }
 
     const representation = toDistribution(row);
