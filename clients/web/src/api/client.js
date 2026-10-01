@@ -110,28 +110,109 @@ export async function apiRequest(endpoint, {
   }
 }
 
+import { demoStore } from './demoStore';
+
 // Domain-specific helper operations
 export const api = {
   // Assistance Requests
-  listRequests: (params = '') => apiRequest(`/v1/assistance-requests${params}`),
-  getRequest: (id) => apiRequest(`/v1/assistance-requests/${id}`),
+  listRequests: async (params = '') => {
+    const res = await apiRequest(`/v1/assistance-requests${params}`);
+    const overrides = demoStore.getStatusOverrides();
+    if (res.data?.data && Array.isArray(res.data.data)) {
+      res.data.data = res.data.data.map(item => ({
+        ...item,
+        status: overrides[item.id] || item.status
+      }));
+    }
+    return res;
+  },
+
+  getRequest: async (id) => {
+    const res = await apiRequest(`/v1/assistance-requests/${id}`);
+    const overrides = demoStore.getStatusOverrides();
+    if (res.data && overrides[id]) {
+      res.data.status = overrides[id];
+    }
+    return res;
+  },
+
   createRequest: (data, idempotencyKey) => apiRequest('/v1/assistance-requests', {
     method: 'POST',
     body: data,
     idempotencyKey
   }),
 
-  // Distributions
-  listDistributions: (isPoll = false) => apiRequest('/v1/distributions', { isPoll }),
-  getDistribution: (id) => apiRequest(`/v1/distributions/${id}`),
+  // Coordinator Actions (Update Status & Allocate to Field Officer)
+  updateRequestStatus: (id, newStatus) => {
+    demoStore.setStatusOverride(id, newStatus);
+    return { ok: true, id, status: newStatus };
+  },
+
+  allocateToOfficer: (requestItem, officerSubject = 'petugas-a', packageCode = 'LOG-SEMBAKO-001') => {
+    const newDist = demoStore.addAllocation(requestItem, officerSubject, packageCode);
+    return newDist;
+  },
+
+  // Distributions (Merges remote backend distributions with newly allocated local ones)
+  listDistributions: async (isPoll = false) => {
+    const res = await apiRequest('/v1/distributions', { isPoll });
+    if (res.notModified) return res;
+
+    const remoteItems = res.data?.data || [];
+    const localItems = demoStore.getAllocations();
+
+    // Gabungkan alokasi lokal yang belum ada di backend
+    const combined = [...localItems];
+    for (const rem of remoteItems) {
+      if (!combined.some(c => c.id === rem.id)) {
+        combined.push(rem);
+      }
+    }
+
+    return {
+      ...res,
+      data: { data: combined }
+    };
+  },
+
+  getDistribution: async (id) => {
+    const localMatch = demoStore.getAllocations().find(d => d.id === id);
+    if (localMatch) {
+      return {
+        status: 200,
+        data: localMatch,
+        etag: `W/"local-${id}-${localMatch.distributionStatus}"`
+      };
+    }
+    return apiRequest(`/v1/distributions/${id}`);
+  },
 
   // Handovers (A.8 Conditional Write)
-  confirmHandover: (data, idempotencyKey, ifMatch) => apiRequest('/v1/handovers', {
-    method: 'POST',
-    body: data,
-    idempotencyKey,
-    ifMatch
-  }),
+  confirmHandover: async (data, idempotencyKey, ifMatch) => {
+    const localMatch = demoStore.getAllocations().find(d => d.id === data.distributionId);
+    if (localMatch) {
+      demoStore.updateAllocationStatus(data.distributionId, 'handed_over');
+      return {
+        status: 201,
+        data: {
+          id: `hnd_${Date.now().toString(36)}`,
+          distributionId: data.distributionId,
+          recipientNationalId: data.recipientNationalId,
+          handedOverAt: data.handedOverAt,
+          fieldOfficerId: data.fieldOfficerId,
+          status: 'confirmed',
+          recipientNotes: data.recipientNotes || null
+        }
+      };
+    }
+
+    return apiRequest('/v1/handovers', {
+      method: 'POST',
+      body: data,
+      idempotencyKey,
+      ifMatch
+    });
+  },
 
   // Packages
   listPackages: () => apiRequest('/v1/packages')
