@@ -12,8 +12,7 @@ export function RequestCreate() {
     applicantName: 'Budi Santoso',
     familyMemberCount: 4,
     targetLocation: 'Posko Pengungsian Balai Desa Sukamaju RT 02/04',
-    requiredPackageType: 'family_food_pack',
-    urgency: 'high'
+    requiredPackageType: 'family_food_pack'
   });
 
   const [inFlight, setInFlight] = useState(false);
@@ -37,17 +36,27 @@ export function RequestCreate() {
     const idempotencyKey = crypto.randomUUID(); // A.6 Idempotency Key pada mutasi
 
     try {
-      const res = await api.createRequest(form, idempotencyKey);
+      // Pastikan payload hanya berisi 5 properti resmi yang didefinisikan di openapi.yaml
+      const payload = {
+        applicantNationalId: form.applicantNationalId?.trim(),
+        applicantName: form.applicantName?.trim(),
+        familyMemberCount: Number(form.familyMemberCount),
+        targetLocation: form.targetLocation?.trim(),
+        requiredPackageType: form.requiredPackageType
+      };
+
+      const res = await api.createRequest(payload, idempotencyKey);
       const newId = res.data?.id;
       navigate(`/requests/${newId}`, {
         state: { flashMessage: 'Permohonan bantuan baru berhasil diajukan!' }
       });
     } catch (err) {
-      if (err.status === 400 && err.invalidFields) {
+      if (err.status === 400 && err.invalidFields && err.invalidFields.length > 0) {
         // A.6 poin 1: Error diletakkan tepat di bawah field masing-masing
         setFieldErrors(err.invalidFields);
+        setGeneralError(err.detail || 'Data formulir tidak valid. Periksa kembali isian di bawah.');
       } else {
-        setGeneralError(err.detail || err.message || 'Gagal mengajukan permohonan');
+        setGeneralError(err.detail || err.message || 'Gagal mengajukan permohonan.');
       }
     } finally {
       setInFlight(false);
@@ -143,43 +152,25 @@ export function RequestCreate() {
           </div>
 
           {/* Jenis Paket */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Kebutuhan Paket Bantuan <span className="text-rose-500">*</span>
-              </label>
-              <select
-                name="requiredPackageType"
-                value={form.requiredPackageType}
-                onChange={handleChange}
-                disabled={inFlight}
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="family_food_pack">Paket Sembako Keluarga (family_food_pack)</option>
-                <option value="medical_emergency_kit">Kit Medis Darurat (medical_emergency_kit)</option>
-                <option value="baby_essentials">Kebutuhan Bayi & Balita (baby_essentials)</option>
-              </select>
-              <FieldError errors={fieldErrors} fieldName="requiredPackageType" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tingkat Urgensi
-              </label>
-              <select
-                name="urgency"
-                value={form.urgency}
-                onChange={handleChange}
-                disabled={inFlight}
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="low">Rendah (low)</option>
-                <option value="medium">Sedang (medium)</option>
-                <option value="high">Tinggi (high)</option>
-                <option value="critical">Kritis (critical)</option>
-              </select>
-              <FieldError errors={fieldErrors} fieldName="urgency" />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Kebutuhan Paket Bantuan <span className="text-rose-500">*</span>
+            </label>
+            <select
+              name="requiredPackageType"
+              value={form.requiredPackageType}
+              onChange={handleChange}
+              disabled={inFlight}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="family_food_pack">Paket Sembako Keluarga (family_food_pack)</option>
+              <option value="medical_emergency_kit">Kit Medis Darurat (medical_emergency_kit)</option>
+              <option value="baby_essentials">Kebutuhan Bayi & Balita (baby_essentials)</option>
+            </select>
+            <FieldError errors={fieldErrors} fieldName="requiredPackageType" />
+            <p className="mt-1 text-xs text-slate-500">
+              *Tingkat urgensi awal akan ditentukan secara otomatis oleh sistem posko darurat saat verifikasi.
+            </p>
           </div>
 
           <div className="pt-4 border-t border-slate-200">

@@ -5,7 +5,9 @@ export function FieldError({ errors, fieldName }) {
   if (!errors || errors.length === 0) return null;
   const match = errors.find((err) =>
     err.instancePath?.endsWith(`/${fieldName}`) ||
+    err.instancePath === `/${fieldName}` ||
     err.params?.missingProperty === fieldName ||
+    err.params?.additionalProperty === fieldName ||
     err.field === fieldName
   );
 
