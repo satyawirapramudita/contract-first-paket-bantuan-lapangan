@@ -12,6 +12,14 @@ export function AuthProvider({ children }) {
   const location = useLocation();
 
   useEffect(() => {
+    // Expose in-memory token getter for A.9 console test verification
+    if (typeof window !== 'undefined') {
+      window.__bantuan = {
+        getToken: () => session?.token ?? null,
+        getSession: () => session
+      };
+    }
+
     configureApiAuth(
       () => session?.token ?? null,
       () => {
@@ -24,7 +32,11 @@ export function AuthProvider({ children }) {
 
   const loginAs = (userObj) => {
     setSession(userObj);
-    const returnUrl = location.state?.from || (userObj.role === 'petugas-lapangan' ? '/distributions' : '/requests');
+    const defaultUrl =
+      userObj.role === 'petugas-lapangan' ? '/distributions' :
+      userObj.role === 'koordinator' ? '/coordinator/requests' :
+      '/requests';
+    const returnUrl = location.state?.from || defaultUrl;
     navigate(returnUrl, { replace: true });
   };
 
