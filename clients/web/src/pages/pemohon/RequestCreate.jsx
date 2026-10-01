@@ -36,14 +36,23 @@ export function RequestCreate() {
     const idempotencyKey = crypto.randomUUID(); // A.6 Idempotency Key pada mutasi
 
     try {
-      // Pastikan payload hanya berisi 5 properti resmi yang didefinisikan di openapi.yaml
-      const payload = {
-        applicantNationalId: form.applicantNationalId?.trim(),
-        applicantName: form.applicantName?.trim(),
-        familyMemberCount: Number(form.familyMemberCount),
-        targetLocation: form.targetLocation?.trim(),
-        requiredPackageType: form.requiredPackageType
-      };
+      // Jangan sertakan kolom yang kosong di payload agar memicu validasi "required" schema backend (Checklist #4)
+      const payload = {};
+      if (form.applicantNationalId && form.applicantNationalId.trim() !== '') {
+        payload.applicantNationalId = form.applicantNationalId.trim();
+      }
+      if (form.applicantName && form.applicantName.trim() !== '') {
+        payload.applicantName = form.applicantName.trim();
+      }
+      if (form.familyMemberCount !== '' && form.familyMemberCount !== null && form.familyMemberCount !== undefined && !isNaN(form.familyMemberCount)) {
+        payload.familyMemberCount = Number(form.familyMemberCount);
+      }
+      if (form.targetLocation && form.targetLocation.trim() !== '') {
+        payload.targetLocation = form.targetLocation.trim();
+      }
+      if (form.requiredPackageType) {
+        payload.requiredPackageType = form.requiredPackageType;
+      }
 
       const res = await api.createRequest(payload, idempotencyKey);
       const newId = res.data?.id;
